@@ -1,0 +1,42 @@
+# src/data.py
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from imblearn.over_sampling import SMOTE, RandomOverSampler
+
+
+def load_data(train_path: str, test_path: str, target_col: str):
+    """Loads CSVs and splits into features and target."""
+    train_df = pd.read_csv(train_path)
+    test_df = pd.read_csv(test_path)
+
+    X_train = train_df.drop(columns=[target_col])
+    y_train = train_df[target_col]
+    X_test = test_df.drop(columns=[target_col])
+    y_test = test_df[target_col]
+
+    return X_train, y_train, X_test, y_test
+
+
+def preprocess_features(X_train, X_test, pca_components: int):
+    """Scales data and applies Principal Component Analysis."""
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    pca = PCA(n_components=pca_components)
+    X_train_pca = pca.fit_transform(X_train_scaled)
+    X_test_pca = pca.transform(X_test_scaled)
+
+    return X_train_pca, X_test_pca, scaler, pca
+
+
+def balance_classes(X_train, y_train, method: str, random_seed: int):
+    """Applies oversampling to handle imbalanced exoplanet classes."""
+    if method == "smote":
+        sampler = SMOTE(random_state=random_seed)
+    else:
+        sampler = RandomOverSampler(random_state=random_seed)
+
+    X_resampled, y_resampled = sampler.fit_resample(X_train, y_train)
+    return X_resampled, y_resampled

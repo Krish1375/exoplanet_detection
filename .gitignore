@@ -1,0 +1,10 @@
+# .gitignore
+__pycache__/
+*.pyc
+.env
+data/*.csv
+data/*.txt
+plots/*.html
+plots/*.png
+.ipynb_checkpoints/
+venv

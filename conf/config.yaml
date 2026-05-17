@@ -1,0 +1,17 @@
+# conf/config.yaml
+pipeline:
+  random_seed: 42
+
+data:
+  train_path: "data/exoTrain.csv"
+  test_path: "data/exoTest.csv"
+  target_column: "LABEL"
+
+preprocessing:
+  pca_components: 100
+  oversample_method: "smote" # Options: 'smote', 'random'
+
+model:
+  type: "random_forest"
+  rf_estimators: 100
+  rf_max_depth: null
