@@ -7,3 +7,5 @@ PyYAML>=6.0
 matplotlib>=3.7.0
 plotly>=5.14.0
 jupyter>=1.0.0
+joblib>=1.2.0
+xgboost>=2.0.0

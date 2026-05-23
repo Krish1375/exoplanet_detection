@@ -2,6 +2,11 @@
 import argparse
 import yaml
 import os
+
+# Suppress annoying TensorFlow C++ and oneDNN warnings BEFORE importing tf
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
 import joblib
 import pandas as pd
 import numpy as np
@@ -53,7 +58,9 @@ def run_training(config: dict):
     )
 
     input_shape = (
-        (X_train_bal.shape[1], 1) if config["model"]["type"] == "cnn" else None
+        (X_train_bal.shape[1], 1)
+        if config["model"]["type"] in ["cnn", "lstm"]
+        else None
     )
     model = get_model(config, input_shape)
 
@@ -72,7 +79,7 @@ def run_inference(config: dict):
         pca = joblib.load("saved_models/pca.pkl")
 
         model_type = config["model"]["type"]
-        if model_type == "cnn":
+        if model_type in ["cnn", "lstm"]:
             model = tf.keras.models.load_model(f"saved_models/{model_type}_model.keras")
         else:
             model = joblib.load(f"saved_models/{model_type}_model.pkl")
@@ -92,14 +99,15 @@ def run_inference(config: dict):
     data_pca = pca.transform(data_scaled)
 
     logger.info(f"Running inference using {model_type}...")
-    if model_type == "cnn":
-        data_cnn = data_pca.reshape((data_pca.shape[0], data_pca.shape[1], 1))
-        prediction_prob = model.predict(data_cnn, verbose=0)
+    if model_type in ["cnn", "lstm"]:
+        data_dl = data_pca.reshape((data_pca.shape[0], data_pca.shape[1], 1))
+        prediction_prob = model.predict(data_dl, verbose=0)
         prediction = (prediction_prob > 0.5).astype(int)[0][0]
     else:
         prediction = model.predict(data_pca)[0]
 
-    result = "EXOPLANET DETECTED" if prediction == 2 else "NO EXOPLANET"
+    # Labels are now mapped to 0 (No Exoplanet) and 1 (Exoplanet)
+    result = "EXOPLANET DETECTED" if prediction == 1 else "NO EXOPLANET"
 
     print("\n" + "=" * 40)
     print(f" FINAL PREDICTION: {result} ")
@@ -107,10 +115,8 @@ def run_inference(config: dict):
 
 
 def main():
-    # Set up the CLI Argument Parser
     parser = argparse.ArgumentParser(description="Exoplanet Detection MLE Pipeline")
 
-    # Define available flags
     parser.add_argument(
         "--train", action="store_true", help="Run the full training pipeline"
     )
@@ -130,24 +136,19 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Load Configuration
     config = load_config(args.config)
 
-    # Override config if --debug flag is passed
     if args.debug:
         logger.info(
             "🚨 DEBUG MODE ACTIVATED: Running fast execution on subset of data 🚨"
         )
         config["pipeline"]["dev_mode"] = True
 
-    # Route execution based on CLI flags
     if args.train:
         run_training(config)
     elif args.predict:
         run_inference(config)
     else:
-        # If no flags are passed, show the help menu
         parser.print_help()
 
 

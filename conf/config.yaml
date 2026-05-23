@@ -1,5 +1,6 @@
 # conf/config.yaml
 pipeline:
+  dev_mode: false 
   random_seed: 42
 
 data:
@@ -9,11 +10,23 @@ data:
 
 preprocessing:
   pca_components: 100
-  oversample_method: "smote" # Options: 'smote', 'random'
+  oversample_method: "smote"
 
 model:
-  type: "random_forest"
+  type: "xgboost" # Options: 'cnn', 'lstm', 'random_forest', 'logistic_regression', 'xgboost'
+  
+  # Traditional ML Configs
   rf_estimators: 100
   rf_max_depth: null
+  
+  # Advanced ML Config (XGBoost)
+  xgb_estimators: 200
+  xgb_learning_rate: 0.1
+  xgb_max_depth: 6
+  xgb_scale_pos_weight: 113  # <-- ADDED: Forces the model to care about the minority class
+  
+  # Deep Learning Configs
   cnn_epochs: 20
   cnn_batch_size: 32
+  lstm_epochs: 20
+  lstm_batch_size: 32

@@ -7,16 +7,18 @@ from imblearn.over_sampling import SMOTE, RandomOverSampler
 
 def load_data(train_path: str, test_path: str, target_col: str, dev_mode: bool = False):
     """Loads CSVs, taking only a subset if dev_mode is True for fast testing."""
-    # If dev_mode is True, only load 200 rows. Otherwise, load the whole dataset.
     row_limit = 200 if dev_mode else None
 
     train_df = pd.read_csv(train_path, nrows=row_limit)
     test_df = pd.read_csv(test_path, nrows=row_limit)
 
     X_train = train_df.drop(columns=[target_col])
-    y_train = train_df[target_col]
+    # XGBoost and deep learning models expect 0-indexed classes.
+    # The Kepler dataset uses 1 (No) and 2 (Yes). Subtracting 1 maps them to 0 and 1.
+    y_train = train_df[target_col] - 1
+
     X_test = test_df.drop(columns=[target_col])
-    y_test = test_df[target_col]
+    y_test = test_df[target_col] - 1
 
     return X_train, y_train, X_test, y_test
 

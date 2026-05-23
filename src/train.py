@@ -12,21 +12,22 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test, config: dict):
     model_type = config["model"]["type"]
     logger.info(f"Initiating training for: {model_type}")
 
-    # 1. Training
-    if model_type == "cnn":
-        # CNNs require a 3D shape: (batch, steps, channels)
-        X_train_cnn = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
-        X_test_cnn = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
+    # 1. Training (Check if it is a Deep Learning model)
+    if model_type in ["cnn", "lstm"]:
+        X_train_dl = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
+        X_test_dl = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
 
-        model.fit(
-            X_train_cnn,
-            y_train,
-            epochs=config["model"]["cnn_epochs"],
-            batch_size=config["model"]["cnn_batch_size"],
-            verbose=1,
+        epochs = (
+            1
+            if config["pipeline"].get("dev_mode")
+            else config["model"][f"{model_type}_epochs"]
         )
-        predictions = (model.predict(X_test_cnn) > 0.5).astype("int32")
+        batch_size = config["model"][f"{model_type}_batch_size"]
+
+        model.fit(X_train_dl, y_train, epochs=epochs, batch_size=batch_size, verbose=1)
+        predictions = (model.predict(X_test_dl) > 0.5).astype("int32")
     else:
+        # Standard ML Models (RF, LogReg, XGBoost)
         model.fit(X_train, y_train)
         predictions = model.predict(X_test)
 
@@ -34,11 +35,13 @@ def train_and_evaluate(model, X_train, y_train, X_test, y_test, config: dict):
     logger.info("Evaluating on test set...")
     bal_acc = balanced_accuracy_score(y_test, predictions)
     logger.info(f"Balanced Accuracy: {bal_acc:.4f}")
-    logger.info(f"\n{classification_report(y_test, predictions)}")
 
-    # 3. Serialization (Saving the model)
+    # ADDED zero_division=0 to suppress the sklearn warnings
+    logger.info(f"\n{classification_report(y_test, predictions, zero_division=0)}")
+
+    # 3. Serialization
     os.makedirs("saved_models", exist_ok=True)
-    if model_type == "cnn":
+    if model_type in ["cnn", "lstm"]:
         model_path = f"saved_models/{model_type}_model.keras"
         model.save(model_path)
     else:
