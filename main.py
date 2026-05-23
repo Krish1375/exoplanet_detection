@@ -1,23 +1,28 @@
 # main.py
+import argparse
 import yaml
 import os
 import joblib
+import pandas as pd
+import numpy as np
+import tensorflow as tf
 from src.data import load_data, preprocess_features, balance_classes
 from src.models import get_model
 from src.train import train_and_evaluate
 from src.utils import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger("ExoPipeline")
 
 
 def load_config(config_path="conf/config.yaml"):
+    """Loads the YAML configuration file."""
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
 
-def main():
-    logger.info("Starting Exoplanet Detection Pipeline...")
-    config = load_config()
+def run_training(config: dict):
+    """Executes the full training and serialization pipeline."""
+    logger.info("--- STARTING TRAINING PIPELINE ---")
 
     logger.info("Loading data...")
     X_train, y_train, X_test, y_test = load_data(
@@ -47,7 +52,6 @@ def main():
         config["pipeline"]["random_seed"],
     )
 
-    # Calculate input shape for CNN if needed
     input_shape = (
         (X_train_bal.shape[1], 1) if config["model"]["type"] == "cnn" else None
     )
@@ -56,7 +60,95 @@ def main():
     trained_model = train_and_evaluate(
         model, X_train_bal, y_train_bal, X_test_pca, y_test, config
     )
-    logger.info("Pipeline execution completed successfully.")
+    logger.info("--- TRAINING PIPELINE COMPLETE ---")
+
+
+def run_inference(config: dict):
+    """Executes the inference pipeline on a sample data point."""
+    logger.info("--- STARTING INFERENCE PIPELINE ---")
+
+    try:
+        scaler = joblib.load("saved_models/scaler.pkl")
+        pca = joblib.load("saved_models/pca.pkl")
+
+        model_type = config["model"]["type"]
+        if model_type == "cnn":
+            model = tf.keras.models.load_model(f"saved_models/{model_type}_model.keras")
+        else:
+            model = joblib.load(f"saved_models/{model_type}_model.pkl")
+    except FileNotFoundError:
+        logger.error(
+            "Artifacts not found! Please run the training pipeline first using --train"
+        )
+        return
+
+    logger.info("Simulating incoming telescope data...")
+    test_df = pd.read_csv(config["data"]["test_path"], nrows=5)
+    target_col = config["data"]["target_column"]
+    raw_data = test_df.drop(columns=[target_col]).iloc[[0]].values
+
+    logger.info("Preprocessing input data...")
+    data_scaled = scaler.transform(raw_data)
+    data_pca = pca.transform(data_scaled)
+
+    logger.info(f"Running inference using {model_type}...")
+    if model_type == "cnn":
+        data_cnn = data_pca.reshape((data_pca.shape[0], data_pca.shape[1], 1))
+        prediction_prob = model.predict(data_cnn, verbose=0)
+        prediction = (prediction_prob > 0.5).astype(int)[0][0]
+    else:
+        prediction = model.predict(data_pca)[0]
+
+    result = "EXOPLANET DETECTED" if prediction == 2 else "NO EXOPLANET"
+
+    print("\n" + "=" * 40)
+    print(f" FINAL PREDICTION: {result} ")
+    print("=" * 40 + "\n")
+
+
+def main():
+    # Set up the CLI Argument Parser
+    parser = argparse.ArgumentParser(description="Exoplanet Detection MLE Pipeline")
+
+    # Define available flags
+    parser.add_argument(
+        "--train", action="store_true", help="Run the full training pipeline"
+    )
+    parser.add_argument(
+        "--predict", action="store_true", help="Run inference on simulated data"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Run in dev mode (fast execution, subset of data)",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="conf/config.yaml",
+        help="Path to custom config file",
+    )
+
+    args = parser.parse_args()
+
+    # Load Configuration
+    config = load_config(args.config)
+
+    # Override config if --debug flag is passed
+    if args.debug:
+        logger.info(
+            "🚨 DEBUG MODE ACTIVATED: Running fast execution on subset of data 🚨"
+        )
+        config["pipeline"]["dev_mode"] = True
+
+    # Route execution based on CLI flags
+    if args.train:
+        run_training(config)
+    elif args.predict:
+        run_inference(config)
+    else:
+        # If no flags are passed, show the help menu
+        parser.print_help()
 
 
 if __name__ == "__main__":

@@ -62,7 +62,8 @@ if __name__ == "__main__":
     test_df = pd.read_csv(config["data"]["test_path"], nrows=5)
 
     # Take the first row, drop the label, and convert to numpy array
-    target_col = config["preprocessing"]["target_column"]
+    # FIXED: target_column is under 'data', not 'preprocessing'
+    target_col = config["data"]["target_column"]
     sample_raw_data = test_df.drop(columns=[target_col]).iloc[[0]].values
 
     # 3. Get Prediction
