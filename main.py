@@ -1,5 +1,7 @@
 # main.py
 import yaml
+import os
+import joblib
 from src.data import load_data, preprocess_features, balance_classes
 from src.models import get_model
 from src.train import train_and_evaluate
@@ -22,12 +24,18 @@ def main():
         config["data"]["train_path"],
         config["data"]["test_path"],
         config["data"]["target_column"],
+        config["pipeline"].get("dev_mode", False),
     )
 
     logger.info("Preprocessing and scaling...")
-    X_train_pca, X_test_pca, _, _ = preprocess_features(
+    X_train_pca, X_test_pca, scaler, pca = preprocess_features(
         X_train, X_test, config["preprocessing"]["pca_components"]
     )
+
+    os.makedirs("saved_models", exist_ok=True)
+    joblib.dump(scaler, "saved_models/scaler.pkl")
+    joblib.dump(pca, "saved_models/pca.pkl")
+    logger.info("Saved Scaler and PCA artifacts.")
 
     logger.info(
         f"Balancing classes using {config['preprocessing']['oversample_method']}..."

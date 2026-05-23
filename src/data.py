@@ -5,10 +5,13 @@ from sklearn.decomposition import PCA
 from imblearn.over_sampling import SMOTE, RandomOverSampler
 
 
-def load_data(train_path: str, test_path: str, target_col: str):
-    """Loads CSVs and splits into features and target."""
-    train_df = pd.read_csv(train_path)
-    test_df = pd.read_csv(test_path)
+def load_data(train_path: str, test_path: str, target_col: str, dev_mode: bool = False):
+    """Loads CSVs, taking only a subset if dev_mode is True for fast testing."""
+    # If dev_mode is True, only load 200 rows. Otherwise, load the whole dataset.
+    row_limit = 200 if dev_mode else None
+
+    train_df = pd.read_csv(train_path, nrows=row_limit)
+    test_df = pd.read_csv(test_path, nrows=row_limit)
 
     X_train = train_df.drop(columns=[target_col])
     y_train = train_df[target_col]
@@ -38,6 +41,5 @@ def balance_classes(X_train, y_train, method: str, random_seed: int):
     else:
         sampler = RandomOverSampler(random_state=random_seed)
 
-    resampled = sampler.fit_resample(X_train, y_train)
-    X_resampled, y_resampled, *_ = resampled
+    X_resampled, y_resampled = sampler.fit_resample(X_train, y_train)
     return X_resampled, y_resampled
