@@ -8,3 +8,7 @@ plots/*.html
 plots/*.png
 .ipynb_checkpoints/
 venv
+saved_models/
+*.pkl
+*.h5
+*.keras

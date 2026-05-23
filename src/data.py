@@ -38,5 +38,6 @@ def balance_classes(X_train, y_train, method: str, random_seed: int):
     else:
         sampler = RandomOverSampler(random_state=random_seed)
 
-    X_resampled, y_resampled = sampler.fit_resample(X_train, y_train)
+    resampled = sampler.fit_resample(X_train, y_train)
+    X_resampled, y_resampled, *_ = resampled
     return X_resampled, y_resampled

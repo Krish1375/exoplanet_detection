@@ -15,3 +15,5 @@ model:
   type: "random_forest"
   rf_estimators: 100
   rf_max_depth: null
+  cnn_epochs: 20
+  cnn_batch_size: 32
